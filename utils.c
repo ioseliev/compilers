@@ -7,7 +7,9 @@
 
 
 char *read_from_stdin() {
-    size_t buffer_size = 3;
+    const size_t BUFFER_SIZE_STRIDE = 1024;
+
+    size_t buffer_size = BUFFER_SIZE_STRIDE;
     size_t n_read = 0;
     char *buffer = malloc(buffer_size * sizeof(char));
 
@@ -19,7 +21,7 @@ char *read_from_stdin() {
         }
 
         if (n_read == (buffer_size - 1)) {
-            buffer_size += 3;
+            buffer_size += BUFFER_SIZE_STRIDE;
             buffer = realloc(buffer, buffer_size);
         }
     }
