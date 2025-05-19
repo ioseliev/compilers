@@ -5,10 +5,10 @@
 
 
 int main(int argc, char **argv) {
-    char *input = read_from_stdin();
-
+    //char *input = read_from_stdin();
+    
     // DFA that recognizes a(a|b)*
-    {
+    /*{
         DFA_t dfa = DFA(2, 3);
         dfa.final_states[2] = true;
     
@@ -26,6 +26,12 @@ int main(int argc, char **argv) {
 
         printf("%s %s\n", (accepts(&dfa, input) ? "ACCEPTS" : "REJECTS"), input);
     }
+    */
+    char regex[100];
+    scanf("%s", regex);
+
+    char* postfix = regex_to_postfix(regex);
+    printf("Expressao em postfix: %s\n", postfix);
 
     return 0;
 }
