@@ -1,4 +1,5 @@
 #include "dfa.h"
+#include "bitset.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -152,6 +153,37 @@ DFA_t kleene(DFA_t *s) {
     SET_FINAL(&ret, 1 + state_shift, true);
 
     destroy(s);
+
+    return ret;
+}
+
+/* Conversion - converts psudo-DFA into a strict DFA */
+
+static inline bitset_t closure(DFA_t *dfa, bitset_t *states, char symbol) {
+    bitset_t closure_ = *states;
+    bool changed = true;
+
+    while (changed) {
+        changed = false;
+        for (uint8_t i = 0; i < dfa->n_states; ++i) {
+            if (!get(&closure_, i)) {
+                continue;
+            }
+            
+            for (uint16_t j = i; j < dfa->n_transitions; ++j) {
+                if (dfa->transitions[i].from == i && dfa->transitions[i].on == symbol && !get(&closure_, dfa->transitions[i].to - 1)) {
+                    set(states, dfa->transitions[i].to - 1);
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    return closure_;
+}
+
+DFA_t strictify(DFA_t *dfa) {
+    DFA_t ret = DFA(dfa->n_states, dfa->n_transitions);
 
     return ret;
 }

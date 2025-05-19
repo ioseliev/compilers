@@ -53,4 +53,8 @@ DFA_t join(DFA_t *s, DFA_t *t);
 
 DFA_t kleene(DFA_t *s);
 
+/* Conversion - converts psudo-DFA into a strict DFA */
+
+DFA_t strictify(DFA_t *dfa);
+
 #endif
