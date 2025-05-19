@@ -7,13 +7,21 @@
 #include <string.h>
 
 
-/* Constructor */
+/* Constructor & destructor */
 
 DFA_t DFA(uint8_t n_states, uint16_t n_transitions) {
     bool *fs = calloc(n_states + 1, sizeof(bool)); // + 1 for stat
     Transition_t *t = calloc(n_transitions, sizeof(Transition_t));
     DFA_t ret = {n_states, fs, n_transitions, t};
     return ret;
+}
+
+void destroy(DFA_t *dfa) {
+    dfa->n_states = dfa->n_transitions = 0;
+    free(dfa->final_states);
+    free(dfa->transitions);
+    dfa->final_states = NULL;
+    dfa->transitions = NULL;
 }
 
 /* Simulation */
@@ -73,6 +81,9 @@ DFA_t concat(DFA_t *s, DFA_t *t) {
 
     SET_FINAL(&ret, state_shift, true);
 
+    destroy(s);
+    destroy(t);
+
     return ret;
 }
 
@@ -110,6 +121,9 @@ DFA_t join(DFA_t *s, DFA_t *t) {
 
     SET_FINAL(&ret, 1 + state_shift, true);
 
+    destroy(s);
+    destroy(t);
+
     return ret;
 }
 
@@ -136,6 +150,8 @@ DFA_t kleene(DFA_t *s) {
     SET_TRANSITION(&ret, 1, 1, 1 + state_shift, EPSILON);
 
     SET_FINAL(&ret, 1 + state_shift, true);
+
+    destroy(s);
 
     return ret;
 }

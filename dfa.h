@@ -33,9 +33,11 @@ typedef struct {
         (dfa)->transitions[(index)].on = (on_);     \
     }
 
-/* Constructor */
+/* Constructor & destruction */
 
 DFA_t DFA(uint8_t n_states, uint16_t n_transitions);
+
+void destroy(DFA_t *dfa);
 
 /* Simulation */
 
