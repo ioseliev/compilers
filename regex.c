@@ -89,7 +89,7 @@ char *regex_to_postfix(const char *regex) {
 }
 
 DFA_t regex_to_dfa(const char *regex) {
-    DFA_t stack[2];
+    DFA_t stack[8];
     int stackpos = 0;
 
     for (int i = 0; regex[i] != '\0'; ++i) {
@@ -97,28 +97,27 @@ DFA_t regex_to_dfa(const char *regex) {
 
         switch (c) {
             case '|': {
-                stack[0] = join(&stack[0], &stack[1]);
-                stackpos = 1;
+                stack[stackpos - 2] = join(&stack[stackpos - 2], &stack[stackpos - 1]);
+                --stackpos;
                 break;
             }
             case '.': {
-                stack[0] = concat(&stack[0], &stack[1]);
-                stackpos = 1;
+                stack[stackpos - 2] = concat(&stack[stackpos - 2], &stack[stackpos - 1]);
+                --stackpos;
                 break;
             }
             case '*': {
-                stack[0] = kleene(&stack[0]);
-                stackpos = 1;
+                stack[stackpos - 1] = kleene(&stack[stackpos - 1]);
                 break;
             }
             default: {
                 stack[stackpos++] = singleton(c);
-                if (stackpos > 1) {
+                if (stackpos > 7) {
                     stackpos = 0;
                 }
             }
         }
     }
 
-    return stack[0];
+    return stack[stackpos - 1];
 }
