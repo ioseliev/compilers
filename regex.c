@@ -1,5 +1,9 @@
 #include "regex.h"
+#include "bitset.h"
+#include "dfa.h"
 
+#include <ctype.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -86,6 +90,61 @@ char *regex_to_postfix(const char *regex) {
     }
     postfix[postfix_pos] = '\0'; // finaliza a string
     return postfix;
+}
+
+DFA_t character_class(const char *regex) {
+    bitset_t chars = bitset();
+    bool negative = false;
+    size_t len = strlen(regex);
+    size_t i = 0;
+    ++i;
+
+    if (regex[i] == '^') {
+        negative = true;
+        ++i;
+    }
+    while (i < len && regex[i] != ']') {
+        if (regex[i + 1] == '-' && (i + 2) < len && isalnum(regex[i]) && isalnum(regex[i + 2])) {
+            for (uint8_t j = regex[i]; j <= regex[i + 2]; ++j) {
+                set(&chars, j);
+            }
+            i += 3;
+        } else {
+            set(&chars, regex[i]);
+            ++i;
+        }
+    }
+
+    if (negative) {
+        for (uint8_t i = 4; i < 32; ++i) {
+            chars.bits[i] ^= 0xFF;
+        }
+    }
+
+    uint8_t ones = 0;
+    for (uint8_t i = 4; i < 32; ++i) {
+        uint8_t byte = chars.bits[i];
+        while (byte > 0) {
+            if ((byte & 1) == 1) {
+                ++ones;
+            }
+            byte >>= 1;
+        }
+    }
+
+    DFA_t ret = DFA(2, ones);
+    uint16_t t = 0;
+
+    for (uint16_t i = 32; i < 256; ++i) {
+        if (get(&chars, i) == true) {
+            SET_TRANSITION(&ret, t, 1, 2, i);
+            ++t;
+        }
+    }
+
+    SET_FINAL(&ret, 2, true);
+
+    return ret;
 }
 
 DFA_t regex_to_dfa(const char *regex) {
