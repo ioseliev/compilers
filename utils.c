@@ -6,14 +6,19 @@
 #include <string.h>
 
 
-char *read_from_stdin() {
+char *read_from_file(const char *filename) {
     const size_t BUFFER_SIZE_STRIDE = 1024;
+
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        return NULL;
+    }
 
     size_t buffer_size = BUFFER_SIZE_STRIDE;
     size_t n_read = 0;
     char *buffer = malloc(buffer_size * sizeof(char));
 
-    while (!feof(stdin) && fgets(buffer + n_read, buffer_size - n_read, stdin) != NULL) {        
+    while (!feof(fp) && fgets(buffer + n_read, buffer_size - n_read, fp) != NULL) {        
         if (n_read == 0) {
             n_read = strlen(buffer);
         } else {
@@ -27,6 +32,8 @@ char *read_from_stdin() {
     }
 
     buffer[n_read] = '\0';
+
+    fclose(fp);
 
     return buffer;
 }

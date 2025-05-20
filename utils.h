@@ -2,6 +2,6 @@
 #define UTILS_H
 
 
-char *read_from_stdin();
+char *read_from_file(const char *filename);
 
 #endif
