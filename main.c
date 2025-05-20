@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "regex.h"
 #include "dfa.h"
 
 #include <stdio.h>
@@ -7,31 +8,19 @@
 int main(int argc, char **argv) {
     //char *input = read_from_stdin();
     
-    // DFA that recognizes a(a|b)*
-    /*{
-        DFA_t dfa = DFA(2, 3);
-        dfa.final_states[2] = true;
-    
-        dfa.transitions[0].from = 1;
-        dfa.transitions[0].to = 2;
-        dfa.transitions[0].on = 'a';
+    {
+        char regex[100];
+        scanf("%s", regex);
 
-        dfa.transitions[1].from = 2;
-        dfa.transitions[1].to = 2;
-        dfa.transitions[1].on = 'a';
+        char* postfix = regex_to_postfix(regex);
+        printf("Expressao em postfix: %s\n", postfix);
 
-        dfa.transitions[2].from = 2;
-        dfa.transitions[2].to = 2;
-        dfa.transitions[2].on = 'b';
+        DFA_t dfa = regex_to_dfa(postfix);
+        printf("DFA relacionado:\n");
+        debug(&dfa);
 
-        printf("%s %s\n", (accepts(&dfa, input) ? "ACCEPTS" : "REJECTS"), input);
+        destroy(&dfa);
     }
-    */
-    char regex[100];
-    scanf("%s", regex);
-
-    char* postfix = regex_to_postfix(regex);
-    printf("Expressao em postfix: %s\n", postfix);
 
     return 0;
 }
