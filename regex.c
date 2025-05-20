@@ -147,6 +147,31 @@ DFA_t character_class(const char *regex) {
     return ret;
 }
 
+DFA_t quantifier(DFA_t *s, uint8_t m, uint8_t n) {
+    DFA_t ret;
+
+    if (m > 0) {
+        ret = copy(s);
+    }
+    for (uint8_t i = 1; i < m; ++i) {
+        ret = concat(&ret, s, false);
+    }
+
+    DFA_t optional_s = singleton(EPSILON);
+    optional_s = join(&optional_s, s, true);
+
+    if (m == 0 && n > 0) {
+        ret = copy(&optional_s);
+    }
+    for (uint8_t i = m + (m == 0 ? 1 : 0); i < n; ++i) {
+        ret = concat(&ret, &optional_s, false);
+    }
+
+    destroy(&optional_s);
+
+    return ret;
+}
+
 DFA_t regex_to_dfa(const char *regex) {
     DFA_t stack[8];
     int stackpos = 0;
@@ -156,12 +181,12 @@ DFA_t regex_to_dfa(const char *regex) {
 
         switch (c) {
             case '|': {
-                stack[stackpos - 2] = join(&stack[stackpos - 2], &stack[stackpos - 1]);
+                stack[stackpos - 2] = join(&stack[stackpos - 2], &stack[stackpos - 1], true);
                 --stackpos;
                 break;
             }
             case '.': {
-                stack[stackpos - 2] = concat(&stack[stackpos - 2], &stack[stackpos - 1]);
+                stack[stackpos - 2] = concat(&stack[stackpos - 2], &stack[stackpos - 1], true);
                 --stackpos;
                 break;
             }

@@ -41,6 +41,8 @@ void debug(DFA_t *dfa);
 
 DFA_t DFA(uint8_t n_states, uint16_t n_transitions);
 
+DFA_t copy(DFA_t *dfa);
+
 void destroy(DFA_t *dfa);
 
 /* Simulation */
@@ -51,9 +53,9 @@ bool accepts(DFA_t *dfa, const char *input);
 
 DFA_t singleton(char c);
 
-DFA_t concat(DFA_t *s, DFA_t *t);
+DFA_t concat(DFA_t *s, DFA_t *t, bool consume_right);
 
-DFA_t join(DFA_t *s, DFA_t *t);
+DFA_t join(DFA_t *s, DFA_t *t, bool consume_right);
 
 DFA_t kleene(DFA_t *s);
 

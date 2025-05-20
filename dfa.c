@@ -28,9 +28,16 @@ void debug(DFA_t *dfa) {
 /* Constructor & destructor */
 
 DFA_t DFA(uint8_t n_states, uint16_t n_transitions) {
-    bool *fs = calloc(n_states + 1, sizeof(bool)); // + 1 for stat
-    Transition_t *t = calloc(n_transitions, sizeof(Transition_t));
-    DFA_t ret = {n_states, fs, n_transitions, t};
+    DFA_t ret = {n_states, NULL, n_transitions, NULL};
+    ret.final_states = calloc(n_states + 1, sizeof(bool));
+    ret.transitions = calloc(n_transitions, sizeof(Transition_t));
+    return ret;
+}
+
+DFA_t copy(DFA_t *dfa) {
+    DFA_t ret = DFA(dfa->n_states, dfa->n_transitions);
+    memcpy(ret.final_states, dfa->final_states, ret.n_states * sizeof(bool));
+    memcpy(ret.transitions, dfa->transitions, ret.n_transitions * sizeof(Transition_t));
     return ret;
 }
 
@@ -79,7 +86,7 @@ DFA_t singleton(char c) {
     return ret;
 }
 
-DFA_t concat(DFA_t *s, DFA_t *t) {
+DFA_t concat(DFA_t *s, DFA_t *t, bool consume_right) {
     DFA_t ret = DFA(s->n_states + t->n_states - 1, s->n_transitions + t->n_transitions);
     uint8_t state_shift = 0;
     uint16_t trans_shift = 0;
@@ -102,12 +109,14 @@ DFA_t concat(DFA_t *s, DFA_t *t) {
     SET_FINAL(&ret, state_shift, true);
 
     destroy(s);
-    destroy(t);
+    if (consume_right == true) {
+        destroy(t);
+    }
 
     return ret;
 }
 
-DFA_t join(DFA_t *s, DFA_t *t) {
+DFA_t join(DFA_t *s, DFA_t *t, bool consume_right) {
     DFA_t ret = DFA(s->n_states + t->n_states + 2, s->n_transitions + t->n_transitions + 4);
     uint8_t state_shift = 1;
     uint16_t trans_shift = 2;
@@ -145,7 +154,9 @@ DFA_t join(DFA_t *s, DFA_t *t) {
     SET_FINAL(&ret, 1 + state_shift, true);
 
     destroy(s);
-    destroy(t);
+    if (consume_right == true) {
+        destroy(t);
+    }
 
     return ret;
 }
