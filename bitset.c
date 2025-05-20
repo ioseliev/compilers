@@ -14,7 +14,7 @@ void set(bitset_t *set, uint8_t index) {
 }
 
 bool get(bitset_t *set, uint8_t index) {
-    return (set->bits[index >> 3] & (index & 7)) != 0;
+    return (set->bits[index >> 3] & (1 << (index & 7))) != 0;
 }
 
 void clear(bitset_t *set) {
