@@ -8,6 +8,23 @@
 #include <string.h>
 
 
+/* Debugging */
+
+void debug(DFA_t *dfa) {
+    printf("States: %hhu\tTransitions: %hu\n", dfa->n_states, dfa->n_transitions);
+    for (uint16_t i = 0; i < dfa->n_transitions; ++i) {
+        Transition_t *t = &dfa->transitions[i];
+        printf("%hhu -> %c -> %hhu\n", t->from, (t->on == EPSILON ? '~' : t->on), t->to);
+    }
+    printf("Final states:");
+    for (uint8_t i = 1; i <= dfa->n_states; ++i) {
+        if (dfa->final_states[i] == true) {
+            printf(" %hhu", i);
+        }
+    }
+    putchar('\n');
+}
+
 /* Constructor & destructor */
 
 DFA_t DFA(uint8_t n_states, uint16_t n_transitions) {
@@ -35,7 +52,7 @@ bool accepts(DFA_t *dfa, const char *input) {
     uint8_t state = 1;
     char c = '\0';
     while ((c = *(input++)) != '\0' && state != 0) {
-        for (size_t i = 0; i < n_trans; ++i) {
+        for (size_t i = state - 1; i < n_trans; ++i) {
             if (trans[i].from == state && trans[i].on == c) {
                 printf("%hhd -> %c -> %hhd\n", trans[i].from, c, trans[i].to);
                 state = trans[i].to;
@@ -55,8 +72,10 @@ bool accepts(DFA_t *dfa, const char *input) {
 
 DFA_t singleton(char c) {
     DFA_t ret = DFA(2, 1);
-    SET_FINAL(&ret, 2, true);
+    
     SET_TRANSITION(&ret, 0, 1, 2, c);
+    SET_FINAL(&ret, 2, true);
+
     return ret;
 }
 
@@ -107,9 +126,13 @@ DFA_t join(DFA_t *s, DFA_t *t) {
 
     SET_TRANSITION(&ret, 1, 1, 1 + state_shift, EPSILON);
 
+    SET_TRANSITION(&ret, trans_shift, 1 + state_shift - 1, 1 + state_shift + t->n_states, EPSILON);
+
+    ++trans_shift;
+
     memcpy(ret.transitions + trans_shift, t->transitions, t->n_transitions * sizeof(Transition_t));
 
-    for (uint16_t i = trans_shift; i < (trans_shift + s->n_transitions); ++i) {
+    for (uint16_t i = trans_shift; i < (trans_shift + t->n_transitions); ++i) {
         ret.transitions[i].from += state_shift;
         ret.transitions[i].to += state_shift;
     }
@@ -117,8 +140,7 @@ DFA_t join(DFA_t *s, DFA_t *t) {
     state_shift += t->n_states;
     trans_shift += t->n_transitions;
 
-    SET_TRANSITION(&ret, trans_shift, 1 + state_shift - t->n_states - 1, 1 + state_shift, EPSILON);
-    SET_TRANSITION(&ret, trans_shift + 1, 1 + state_shift - 1, 1 + state_shift, EPSILON);
+    SET_TRANSITION(&ret, trans_shift, 1 + state_shift - 1, 1 + state_shift, EPSILON);
 
     SET_FINAL(&ret, 1 + state_shift, true);
 
