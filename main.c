@@ -27,7 +27,7 @@ static const struct { TokenType token; const char *regex; } EXPRESSIONS[] = {
     /* Operators */
     { OP_ADD, "+" },
     { OP_SUB, "-" },
-    { OP_MUL, "\\*" },
+    { OP_MUL, "[*]" },
     { OP_DIV, "/" },
     { OP_LT, "<" },
     { OP_GT, ">" },
