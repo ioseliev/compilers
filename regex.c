@@ -102,6 +102,18 @@ char *regex_to_postfix(const char *regex) {
                 }
                 break;
             }
+            case '[': {
+                char *closing = strchr(modified_regex + i, ']');
+                if (closing != NULL) {
+                    for (int j = i; j < (i + (closing - (modified_regex + i)) + 1); ++j) {
+                        postfix[postfix_pos++] = modified_regex[j];
+                    }
+                    i += closing - (modified_regex + i);
+                } else {
+                    postfix[postfix_pos++] = c;
+                }
+                break;
+            }
             case '|':
             case '.':
             case '*': {
