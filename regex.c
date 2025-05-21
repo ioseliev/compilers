@@ -3,7 +3,9 @@
 #include "dfa.h"
 
 #include <ctype.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,7 +19,9 @@ static inline int precedence(char operator) {
         case '.':       // simboliza a concatenacao implicita na regex
             return 2;
         case '*':
+        case '{':
             return 3;
+        case '[':
         default:
             return 0;
     }
@@ -35,10 +39,38 @@ void insert_implicit_concat(const char *regex, char *output) {
             char current = regex[i];
             char next = regex[i + 1];
 
+            if (current == '[') {
+                char *closing = strchr(regex + i + 1, ']');
+                if (closing != NULL) {
+                    for (int j = i + 1; j < (i + (closing - (regex + i)) + 1); ++j) {
+                        output[outpos++] = regex[j];
+                    }
+                    i += closing - (regex + i);
+                }
+            }
+            
+            bool quantifier_next = false;
+
+            if (regex[i + 1] == '{') {
+                unsigned int m, n, p, q;
+                q = sscanf(regex + i + 1, "{%u,%u}%n", &m, &n, &p);
+                if (p > 0 && q == 2) {
+                    quantifier_next = true;
+                    for (int j = i + 1; j < (i + p); ++j) {
+                        output[outpos++] = regex[j];
+                    }
+                    i += p - 1;
+                }
+            }
+            
+            next = regex[i + 1];
+
             // casos que precisa inserir a concat
-            if ((current != '|') && (current != '(') && (next != '|') && (next != ')') && (next != '*')) {
+            if ((current != '|') && (current != '(') && (next != '|') && (next != ')') && (next != '*') && !quantifier_next && i != len - 1) {
                 output[outpos++] = '.';
             }
+            
+            quantifier_next = false;
         }
     }
     output[outpos] = '\0'; // finaliza a string
@@ -57,11 +89,11 @@ char *regex_to_postfix(const char *regex) {
         char c = modified_regex[i];
 
         switch (c) { // adiciona operadores ao stack e operandos ao resultado
-            case '(': 
+            case '(': {
                 stack[stack_pos++] = c;
                 break;
-
-            case ')': 
+            }
+            case ')': {
                 while (stack_pos > 0 && stack[stack_pos - 1] != '(') {
                     postfix[postfix_pos++] = stack[--stack_pos];
                 }
@@ -69,19 +101,56 @@ char *regex_to_postfix(const char *regex) {
                     stack_pos--;
                 }
                 break;
-
+            }
             case '|':
             case '.':
-            case '*':
+            case '*': {
                 while (stack_pos > 0 && precedence(stack[stack_pos - 1]) >= precedence(c)) {
-                    postfix[postfix_pos++] = stack[--stack_pos];
+                    if (stack[stack_pos - 1] == '{') {
+                        postfix[postfix_pos++] = stack[--stack_pos];
+                        while (stack_pos > 0 && stack[stack_pos - 1] != '}') {
+                            postfix[postfix_pos++] = stack[--stack_pos];
+                        }
+                        if (stack_pos > 0) {
+                            postfix[postfix_pos++] = stack[--stack_pos];
+                        }
+                    } else {
+                        postfix[postfix_pos++] = stack[--stack_pos];
+                    }
                 }
                 stack[stack_pos++] = c;
                 break;
+            }
+            case '{': {
+                unsigned int m, n, p, q;
+                q = sscanf(modified_regex + i, "{%u,%u}%n", &m, &n, &p);
+                if (p > 0 && q == 2) {
+                    while (stack_pos > 0 && precedence(stack[stack_pos - 1]) >= precedence(c)) {
+                        postfix[postfix_pos++] = stack[--stack_pos];
+                    }
+                    char buf[16];
+                    stack[stack_pos++] = '}';
+                    sprintf(buf, "%u%n", n, &q);
+                    for (int j = q - 1; j >= 0; --j) {
+                        stack[stack_pos++] = buf[j];
+                    }
+                    stack[stack_pos++] = ',';
+                    sprintf(buf, "%u%n", m, &q);
+                    for (int j = q - 1; j >= 0; --j) {
+                        stack[stack_pos++] = buf[j];
+                    }
+                    stack[stack_pos++] = '{';
 
-            default:
+                    i += p - 1;
+                } else {
+                    postfix[postfix_pos++] = c;
+                }
+                break;
+            }
+            default: {
                 postfix[postfix_pos++] = c; // adiciona o caractere ao resultado
                 break;
+            }
         }
     }
 
@@ -180,6 +249,21 @@ DFA_t regex_to_dfa(const char *regex) {
         char c = regex[i];
 
         switch (c) {
+            case '[': {
+                DFA_t item;
+                char *closing = strchr(regex + i + 1, ']');
+                if (closing != NULL) {
+                    item = character_class(regex + i);
+                    i += closing - (regex + i);
+                } else {
+                    item = singleton(c);
+                }
+                stack[stackpos++] = item;
+                if (stackpos > 7) {
+                    stackpos = 0;
+                }
+                break;
+            }
             case '|': {
                 stack[stackpos - 2] = join(&stack[stackpos - 2], &stack[stackpos - 1], true);
                 --stackpos;
@@ -192,6 +276,20 @@ DFA_t regex_to_dfa(const char *regex) {
             }
             case '*': {
                 stack[stackpos - 1] = kleene(&stack[stackpos - 1]);
+                break;
+            }
+            case '{': {
+                unsigned int m, n, p, q;
+                q = sscanf(regex + i, "{%u,%u}%n", &m, &n, &q);
+                if (p > 0 && q == 2) {
+                    stack[stackpos - 1] = quantifier(&stack[stackpos - 1], m, n);
+                    i += p - 1;
+                } else {
+                    stack[stackpos++] = singleton(c);
+                    if (stackpos > 7) {
+                        stackpos = 0;
+                    }
+                }
                 break;
             }
             default: {
