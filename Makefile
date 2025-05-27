@@ -3,7 +3,7 @@ LD := ${CC}
 
 CFLAGS := -g -O2 -I./
 
-TARGET = lexer
+TARGET = exec
 OBJS := $(patsubst %.c, %.o, $(wildcard *.c))
 
 

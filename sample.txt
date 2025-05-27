@@ -1,2 +1,0 @@
-TEXT msg = "Hello, world!";
-show TEXT;
