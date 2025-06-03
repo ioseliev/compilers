@@ -1,10 +1,10 @@
-CC := gcc
-LD := ${CC}
+CXX := g++
+LD := ${CXX}
 
-CFLAGS := -g -O2 -I./
+CXXFLAGS := -pipe -fPIC -g -O2 -I./
 
 TARGET = exec
-OBJS := $(patsubst %.c, %.o, $(wildcard *.c))
+OBJS := $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 
 
 all: ${TARGET}
@@ -12,8 +12,8 @@ all: ${TARGET}
 ${TARGET}: ${OBJS}
 	${LD} -o $@ $^
 
-%.o: %.c
-	${CC} -c ${CFLAGS} -o $@ $<
+%.o: %.cpp
+	${CXX} -c ${CXXFLAGS} -o $@ $<
 
 .PHONY: run
 run: ${TARGET}
