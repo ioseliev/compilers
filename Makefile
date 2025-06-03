@@ -1,7 +1,7 @@
 CXX := g++
 LD := ${CXX}
 
-CXXFLAGS := -pipe -fPIC -g -O2 -I./
+CXXFLAGS := -pipe -fPIC -Wall -Wextra -Wpedantic -g -O2
 
 TARGET = exec
 OBJS := $(patsubst %.cpp, %.o, $(wildcard *.cpp))
