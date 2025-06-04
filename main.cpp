@@ -33,7 +33,6 @@ bool isComparator(const std::string& t) {
     return false;
 }
 
-
 struct Instruction {
     std::string text; 
     std::string var_def;
@@ -88,6 +87,10 @@ struct BasicBlock {
     std::set<std::string> in_reach;
     std::set<std::string> out_reach;
 
+    // Expressões disponíveis
+    std::set<std::string> in_avail;
+    std::set<std::string> out_avail;
+
     BasicBlock() : id(-1) {}
     BasicBlock(int i) : id(i) {}
 };
@@ -128,6 +131,12 @@ void read(const std::string& filename, std::map<int, BasicBlock>& CFG) {
         }
 
         CFG[block_id] = block;
+    }
+
+    for (auto& [id, block] : CFG) {
+        for (const auto succ_id : block.successors) {
+            CFG[succ_id].predecessors.insert(id);
+        }
     }
 }
 
@@ -176,6 +185,57 @@ void liveness(std::map<int, BasicBlock>& CFG) {
     } while (changed);
 }
 
+void fillGenKill(std::map<int, BasicBlock>& CFG) {
+    for (auto& [id, block] : CFG) {
+        for (const auto& instr : block.instructions) {
+            if (instr.var_def != "") {
+                auto rhs = trim(instr.text.substr(instr.text.find('=') + 1));
+                block.kill.insert(instr.var_def);
+                if (rhs.find(instr.var_def) == std::string::npos) {
+                    block.gen.insert(rhs);
+                }
+            }
+        }
+    }
+}
+
+void available(std::map<int, BasicBlock>& CFG) {
+    for (auto& [id, block] : CFG) {
+        block.in_avail = id != 1 ? block.gen : std::set<std::string>{};
+        block.out_avail = block.gen;
+    }
+
+    bool changed;
+    do {
+        changed = false;
+        for (auto& [id, block] : CFG) {
+            auto in = id != 1 ? CFG[*block.predecessors.begin()].out_avail : std::set<std::string>{};
+            for (auto v = in.begin(); v != in.end(); ) {
+                for (const auto pred : block.predecessors) {
+                    if (CFG[pred].out_avail.find(*v) == CFG[pred].out_avail.end()) {
+                        v = in.erase(v);
+                    } else {
+                        ++v;
+                    }
+                }
+            }
+            
+            auto out = block.gen;
+            for (const auto& v : in) {
+                if (block.kill.find(v) == block.kill.end()) {
+                    out.insert(v);
+                }
+            }
+
+            if (in != block.in_avail || out != block.out_avail) {
+                changed = true;
+                block.in_avail = in;
+                block.out_avail = out;
+            }
+        }
+    } while (changed);
+}
+
 void printCFG(std::map<int, BasicBlock> CFG){
     for (const auto& [id, block] : CFG) {
         std::cout << "Block " << id << ":\n";
@@ -191,12 +251,12 @@ void printCFG(std::map<int, BasicBlock> CFG){
         for (const auto& v : block.def) {
             std::cout << v << " ";
         }
-        std::cout << "\n  In Live: ";
-        for (const auto& v : block.in_live) {
-            std::cout << v << " ";
+        std::cout << "\n  Gen: ";
+        for (const auto& v : block.gen) {
+            std::cout << '[' << v << "] ";
         }
-        std::cout << "\n  Out Live: ";
-        for (const auto& v : block.out_live) {
+        std::cout << "\n  Kill: ";
+        for (const auto& v : block.kill) {
             std::cout << v << " ";
         }
         std::cout << "\n\n";
@@ -219,6 +279,21 @@ void printInOut(std::map<int, BasicBlock>& CFG) {
     }
 }
 
+void printAvailable(std::map<int, BasicBlock>& CFG) {
+    for (const auto& [id, block] : CFG) {
+        std::cout << "Block " << id << ":\n";
+        std::cout << "  In Available: ";
+        for (const auto& v : block.in_avail) {
+            std::cout << '[' << v << "] ";
+        }
+        std::cout << "\n  Out Available: ";
+        for (const auto& v : block.out_avail) {
+            std::cout << '[' << v << "] ";
+        }
+        std::cout << "\n\n";
+    }
+}
+
 int main(){
 
     std::map<int, BasicBlock> CFG;
@@ -226,8 +301,10 @@ int main(){
     read("exemplos/codigo.txt", CFG);
 
     fillUseDef(CFG);
-    liveness(CFG);
-    printInOut(CFG);
+    fillGenKill(CFG);
+    available(CFG);
+    printCFG(CFG); 
+    printAvailable(CFG);
 
     
 
