@@ -294,21 +294,31 @@ void printAvailable(std::map<int, BasicBlock>& CFG) {
     }
 }
 
-int main(){
+int main(int argc, char **argv){
+    if (argc < 2) {
+        std::cerr << "Usage: `" << argv[0] << " filename`." << std::endl;
+        return 1;
+    }
 
     std::map<int, BasicBlock> CFG;
-
-    read("exemplos/codigo.txt", CFG);
+    read(argv[1], CFG);
 
     fillUseDef(CFG);
     fillGenKill(CFG);
+    
+    liveness(CFG);
     available(CFG);
-    printCFG(CFG); 
+
+    std::cerr << "CONTROL FLOW GRAPH SUMMARY:\n\n";
+    printCFG(CFG);
+
+    std::cout << "ANALYSES SUMMARY:\n\n";
+
+    std::cout << "Liveness:\n";
+    printInOut(CFG);
+
+    std::cout << "Available expressions:\n";
     printAvailable(CFG);
-
     
-
-    
-
     return 0;
 }
