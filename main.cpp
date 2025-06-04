@@ -200,10 +200,17 @@ void fillGenKill(std::map<int, BasicBlock>& CFG) {
 }
 
 void available(std::map<int, BasicBlock>& CFG) {
-    for (auto& [id, block] : CFG) {
-        block.in_avail = id != 1 ? block.gen : std::set<std::string>{};
-        block.out_avail = block.gen;
+    std::set<std::string> all_exprs;
+    for (const auto& [_, block] : CFG) {
+        for (const auto& expr : block.gen) {
+            all_exprs.insert(expr);
+        }
     }
+    for (auto& [id, block] : CFG) {
+        block.in_avail = id != 1 ? all_exprs : std::set<std::string>{};
+        block.out_avail = all_exprs;
+    }
+    all_exprs.clear();
 
     bool changed;
     do {
@@ -221,9 +228,11 @@ void available(std::map<int, BasicBlock>& CFG) {
             }
             
             auto out = block.gen;
-            for (const auto& v : in) {
-                if (block.kill.find(v) == block.kill.end()) {
-                    out.insert(v);
+            for (const auto& var : block.kill) {
+                for (const auto& expr : in) {
+                    if (expr.find(var) == std::string::npos) {
+                        out.insert(expr);
+                    }
                 }
             }
 
