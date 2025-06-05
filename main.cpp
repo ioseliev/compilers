@@ -190,10 +190,23 @@ void fillGenKill(std::map<int, BasicBlock>& CFG) {
         for (const auto& instr : block.instructions) {
             if (instr.var_def != "") {
                 auto rhs = trim(instr.text.substr(instr.text.find('=') + 1));
-                block.kill.insert(instr.var_def);
-                if (rhs.find(instr.var_def) == std::string::npos) {
-                    block.gen.insert(rhs);
+                block.gen.insert(rhs);
+                for (auto v = block.gen.begin(); v != block.gen.end(); ) {
+                    if (v->find(instr.var_def) != std::string::npos) {
+                        block.kill.insert(*v);
+                        v = block.gen.erase(v);
+                    } else {
+                        ++v;
+                    }
                 }
+            }
+        }
+
+        for (auto v = block.kill.begin(); v != block.kill.end(); ) {
+            if (block.gen.find(*v) != block.gen.end()) {
+                v = block.kill.erase(v);
+            } else {
+                ++v;
             }
         }
     }
