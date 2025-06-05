@@ -82,12 +82,14 @@ struct BasicBlock {
     std::set<std::string> out_live;
 
     // definições alcançantes
-    std::set<std::string> gen;
-    std::set<std::string> kill;
+    std::set<std::string> gen_reach;
+    std::set<std::string> kill_reach;
     std::set<std::string> in_reach;
     std::set<std::string> out_reach;
 
     // Expressões disponíveis
+    std::set<std::string> gen_avail;
+    std::set<std::string> kill_avail;
     std::set<std::string> in_avail;
     std::set<std::string> out_avail;
 
@@ -185,16 +187,16 @@ void liveness(std::map<int, BasicBlock>& CFG) {
     } while (changed);
 }
 
-void fillGenKill(std::map<int, BasicBlock>& CFG) {
+void fillGenKillAvail(std::map<int, BasicBlock>& CFG) {
     for (auto& [id, block] : CFG) {
         for (const auto& instr : block.instructions) {
             if (instr.var_def != "") {
                 auto rhs = trim(instr.text.substr(instr.text.find('=') + 1));
-                block.gen.insert(rhs);
-                for (auto v = block.gen.begin(); v != block.gen.end(); ) {
+                block.gen_avail.insert(rhs);
+                for (auto v = block.gen_avail.begin(); v != block.gen_avail.end(); ) {
                     if (v->find(instr.var_def) != std::string::npos) {
-                        block.kill.insert(*v);
-                        v = block.gen.erase(v);
+                        block.kill_avail.insert(*v);
+                        v = block.gen_avail.erase(v);
                     } else {
                         ++v;
                     }
@@ -202,9 +204,9 @@ void fillGenKill(std::map<int, BasicBlock>& CFG) {
             }
         }
 
-        for (auto v = block.kill.begin(); v != block.kill.end(); ) {
-            if (block.gen.find(*v) != block.gen.end()) {
-                v = block.kill.erase(v);
+        for (auto v = block.kill_avail.begin(); v != block.kill_avail.end(); ) {
+            if (block.gen_avail.find(*v) != block.gen_avail.end()) {
+                v = block.kill_avail.erase(v);
             } else {
                 ++v;
             }
@@ -215,8 +217,11 @@ void fillGenKill(std::map<int, BasicBlock>& CFG) {
 void available(std::map<int, BasicBlock>& CFG) {
     std::set<std::string> all_exprs;
     for (const auto& [_, block] : CFG) {
-        for (const auto& expr : block.gen) {
-            all_exprs.insert(expr);
+        for (const auto& instr : block.instructions) {
+            if (instr.var_def != "") {
+                auto rhs = trim(instr.text.substr(instr.text.find('=') + 1));
+                all_exprs.insert(rhs);
+            }
         }
     }
     for (auto& [id, block] : CFG) {
@@ -240,8 +245,8 @@ void available(std::map<int, BasicBlock>& CFG) {
                 }
             }
             
-            auto out = block.gen;
-            for (const auto& var : block.kill) {
+            auto out = block.gen_avail;
+            for (const auto& var : block.kill_avail) {
                 for (const auto& expr : in) {
                     if (expr.find(var) == std::string::npos) {
                         out.insert(expr);
@@ -273,12 +278,12 @@ void printCFG(std::map<int, BasicBlock> CFG){
         for (const auto& v : block.def) {
             std::cout << v << " ";
         }
-        std::cout << "\n  Gen: ";
-        for (const auto& v : block.gen) {
+        std::cout << "\n  Gen Avail.: ";
+        for (const auto& v : block.gen_avail) {
             std::cout << '[' << v << "] ";
         }
-        std::cout << "\n  Kill: ";
-        for (const auto& v : block.kill) {
+        std::cout << "\n  Kill Avail.: ";
+        for (const auto& v : block.kill_avail) {
             std::cout << v << " ";
         }
         std::cout << "\n\n";
@@ -326,7 +331,7 @@ int main(int argc, char **argv){
     read(argv[1], CFG);
 
     fillUseDef(CFG);
-    fillGenKill(CFG);
+    fillGenKillAvail(CFG);
     
     liveness(CFG);
     available(CFG);
