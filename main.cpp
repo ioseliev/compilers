@@ -188,34 +188,7 @@ void liveness(std::map<int, BasicBlock>& CFG) {
 }
 
 void fillGenKillAvail(std::map<int, BasicBlock>& CFG) {
-    for (auto& [id, block] : CFG) {
-        for (const auto& instr : block.instructions) {
-            if (instr.var_def != "") {
-                auto rhs = trim(instr.text.substr(instr.text.find('=') + 1));
-                block.gen_avail.insert(rhs);
-                for (auto v = block.gen_avail.begin(); v != block.gen_avail.end(); ) {
-                    if (v->find(instr.var_def) != std::string::npos) {
-                        block.kill_avail.insert(*v);
-                        v = block.gen_avail.erase(v);
-                    } else {
-                        ++v;
-                    }
-                }
-            }
-        }
-
-        for (auto v = block.kill_avail.begin(); v != block.kill_avail.end(); ) {
-            if (block.gen_avail.find(*v) != block.gen_avail.end()) {
-                v = block.kill_avail.erase(v);
-            } else {
-                ++v;
-            }
-        }
-    }
-}
-
-void available(std::map<int, BasicBlock>& CFG) {
-    std::set<std::string> all_exprs;
+    std::set<std::string> all_exprs{};
     for (const auto& [_, block] : CFG) {
         for (const auto& instr : block.instructions) {
             if (instr.var_def != "") {
@@ -224,19 +197,46 @@ void available(std::map<int, BasicBlock>& CFG) {
             }
         }
     }
+    
     for (auto& [id, block] : CFG) {
-        block.in_avail = id != 1 ? all_exprs : std::set<std::string>{};
-        block.out_avail = all_exprs;
+        for (const auto& instr : block.instructions) {
+            if (instr.var_def != "") {
+                auto rhs = trim(instr.text.substr(instr.text.find('=') + 1));
+                block.gen_avail.insert(rhs);
+                for (auto v = block.gen_avail.begin(); v != block.gen_avail.end(); ) {
+                    if (v->find(instr.var_def) != std::string::npos) {
+                        v = block.gen_avail.erase(v);
+                    } else {
+                        ++v;
+                    }
+                }
+            }
+        }
+
+        for (const auto& expr : all_exprs) {
+            for (const auto& def : block.def) {
+                if (expr.find(def) != std::string::npos && block.gen_avail.find(expr) == block.gen_avail.end()) {
+                    block.kill_avail.insert(expr);
+                }
+            }
+        }
     }
-    all_exprs.clear();
+}
+
+void available(std::map<int, BasicBlock>& CFG) {
+    for (auto& [id, block] : CFG) {
+        // block.in_avail = id != 1 ? all_exprs : std::set<std::string>{};
+        block.in_avail = std::set<std::string>{};
+        block.out_avail = std::set<std::string>{};
+    }
 
     bool changed;
     do {
         changed = false;
         for (auto& [id, block] : CFG) {
             auto in = id != 1 ? CFG[*block.predecessors.begin()].out_avail : std::set<std::string>{};
-            for (auto v = in.begin(); v != in.end(); ) {
-                for (const auto pred : block.predecessors) {
+            for (const auto pred : block.predecessors) {
+                for (auto v = in.begin(); v != in.end(); ) {
                     if (CFG[pred].out_avail.find(*v) == CFG[pred].out_avail.end()) {
                         v = in.erase(v);
                     } else {
@@ -246,11 +246,9 @@ void available(std::map<int, BasicBlock>& CFG) {
             }
             
             auto out = block.gen_avail;
-            for (const auto& var : block.kill_avail) {
-                for (const auto& expr : in) {
-                    if (expr.find(var) == std::string::npos) {
-                        out.insert(expr);
-                    }
+            for (const auto& expr : in) {
+                if (block.kill_avail.find(expr) == block.kill_avail.end()) {
+                    out.insert(expr);
                 }
             }
 
