@@ -187,6 +187,81 @@ void liveness(std::map<int, BasicBlock>& CFG) {
     } while (changed);
 }
 
+void fillGenKillReach(std::map<int, BasicBlock>& CFG) {
+    std::map<std::string, std::set<std::string>> var_definitions;
+
+    for (const auto& [block_id, block] : CFG) {
+        for (size_t i = 0; i < block.instructions.size(); ++i) {
+            const auto& instr = block.instructions[i];
+            if (!instr.var_def.empty()) {
+                std::string def_id = instr.var_def + "[block " + std::to_string(block_id) + ", insn " + std::to_string(i + 1) + "]";
+                var_definitions[instr.var_def].insert(def_id);
+            }
+        }
+    }
+
+    
+    for (auto& [block_id, block] : CFG) {
+        std::set<std::string> gen, kill;
+
+        for (size_t i = 0; i < block.instructions.size(); ++i) {
+            const auto& instr = block.instructions[i];
+            if (!instr.var_def.empty()) {
+                std::string def_id = instr.var_def + "[block " + std::to_string(block_id) + ", insn " + std::to_string(i + 1) + "]";
+                gen.insert(def_id);
+
+                for (const auto& other_def_id : var_definitions[instr.var_def]) {
+                    if (other_def_id != def_id) {
+                        kill.insert(other_def_id);
+                    }
+                }
+            }
+        }
+
+        block.gen_reach = gen;
+        block.kill_reach = kill;
+    }
+}
+
+
+
+void reachingDefinitions(std::map<int, BasicBlock>& CFG) {
+    for (auto& [id, block] : CFG) {
+        block.in_reach.clear();
+        block.out_reach.clear();
+    }
+
+    bool changed;
+    do {
+        changed = false;
+        for (auto& [id, block] : CFG) {
+            std::set<std::string> in_new;
+            if (block.predecessors.empty()) {
+                in_new.clear();
+            } else {
+                for (int pred : block.predecessors) {
+                    in_new.insert(CFG[pred].out_reach.begin(), CFG[pred].out_reach.end());
+                }
+            }
+
+            // OUT[B] = GEN[B] ∪ (IN[B] - KILL[B])
+            std::set<std::string> out_new = block.gen_reach;
+
+            for (const auto& def : in_new) {
+                if (block.kill_reach.find(def) == block.kill_reach.end()) {
+                    out_new.insert(def);
+                }
+            }
+
+            if (block.in_reach != in_new || block.out_reach != out_new) {
+                changed = true;
+                block.in_reach = in_new;
+                block.out_reach = out_new;
+            }
+        }
+    } while (changed);
+}
+
 void fillGenKillAvail(std::map<int, BasicBlock>& CFG) {
     std::set<std::string> all_exprs{};
     for (const auto& [_, block] : CFG) {
@@ -268,7 +343,15 @@ void printCFG(std::map<int, BasicBlock> CFG){
         for (const auto& instr : block.instructions) {
             std::cout << "    " << instr.text << "\n";
         }
-        std::cout << "  Use: ";
+        std::cout << "  Predecessors: ";
+        for (const auto pred : block.predecessors) {
+            std::cout << pred << ' ';
+        }
+        std::cout << "\n  Successors: ";
+        for (const auto succ : block.successors) {
+            std::cout << succ << ' ';
+        }
+        std::cout << "\n  Use: ";
         for (const auto& v : block.use) {
             std::cout << v << " ";
         }
@@ -276,13 +359,21 @@ void printCFG(std::map<int, BasicBlock> CFG){
         for (const auto& v : block.def) {
             std::cout << v << " ";
         }
+        std::cout << "\n  Gen Reach: ";
+        for (const auto& def : block.gen_reach) {
+            std::cout << def << " ";
+        }
+        std::cout << "\n  Kill Reach: ";
+        for (const auto& def : block.kill_reach) {
+            std::cout << def << " ";
+        }
         std::cout << "\n  Gen Avail.: ";
         for (const auto& v : block.gen_avail) {
             std::cout << '[' << v << "] ";
         }
         std::cout << "\n  Kill Avail.: ";
         for (const auto& v : block.kill_avail) {
-            std::cout << v << " ";
+            std::cout << '[' << v << "] ";
         }
         std::cout << "\n\n";
     }
@@ -299,6 +390,23 @@ void printInOut(std::map<int, BasicBlock>& CFG) {
         std::cout << "\n  Out Live: ";
         for (const auto& v : block.out_live) {
             std::cout << v << " ";
+        }
+        std::cout << "\n\n";
+    }
+}
+
+void printReachingDefinitions(const std::map<int, BasicBlock>& CFG) {
+    for (const auto& [block_id, block] : CFG) {
+        std::cout << "Block " << block_id << ":\n";
+
+        std::cout << "  In Reach: ";
+        for (const auto& def : block.in_reach) {
+            std::cout << def << " ";
+        }
+
+        std::cout << "\n  Out Reach: ";
+        for (const auto& def : block.out_reach) {
+            std::cout << def << " ";
         }
         std::cout << "\n\n";
     }
@@ -329,9 +437,11 @@ int main(int argc, char **argv){
     read(argv[1], CFG);
 
     fillUseDef(CFG);
+    fillGenKillReach(CFG);
     fillGenKillAvail(CFG);
     
     liveness(CFG);
+    reachingDefinitions(CFG);
     available(CFG);
 
     std::cerr << "CONTROL FLOW GRAPH SUMMARY:\n\n";
@@ -341,6 +451,9 @@ int main(int argc, char **argv){
 
     std::cout << "Liveness:\n";
     printInOut(CFG);
+
+    std::cout << "Reaching definitions:\n";
+    printReachingDefinitions(CFG);
 
     std::cout << "Available expressions:\n";
     printAvailable(CFG);
