@@ -189,36 +189,39 @@ void liveness(std::map<int, BasicBlock>& CFG) {
 
 void fillGenKillReach(std::map<int, BasicBlock>& CFG) {
     std::map<std::string, std::set<std::string>> var_definitions;
+    unsigned int count = 1;
 
-    for (const auto& [block_id, block] : CFG) {
+    for (auto& [block_id, block] : CFG) {
+        std::map<std::string, std::string> gen;
         for (size_t i = 0; i < block.instructions.size(); ++i) {
             const auto& instr = block.instructions[i];
             if (!instr.var_def.empty()) {
-                std::string def_id = instr.var_def + "[block " + std::to_string(block_id) + ", insn " + std::to_string(i + 1) + "]";
+                std::string def_id = instr.var_def + "[d" + std::to_string(count++) + ']';
+                gen[instr.var_def] = def_id;
                 var_definitions[instr.var_def].insert(def_id);
             }
         }
+        for (const auto& [_, def] : gen) {
+            block.gen_reach.insert(def);
+        }
     }
 
-    
+    count = 1;
     for (auto& [block_id, block] : CFG) {
-        std::set<std::string> gen, kill;
+        std::set<std::string> kill;
 
         for (size_t i = 0; i < block.instructions.size(); ++i) {
             const auto& instr = block.instructions[i];
             if (!instr.var_def.empty()) {
-                std::string def_id = instr.var_def + "[block " + std::to_string(block_id) + ", insn " + std::to_string(i + 1) + "]";
-                gen.insert(def_id);
-
+                std::string def_id = instr.var_def + "[d" + std::to_string(count++) + ']';
                 for (const auto& other_def_id : var_definitions[instr.var_def]) {
-                    if (other_def_id != def_id) {
+                    if (other_def_id != def_id && block.gen_reach.find(other_def_id) == block.gen_reach.end()) {
                         kill.insert(other_def_id);
                     }
                 }
             }
         }
 
-        block.gen_reach = gen;
         block.kill_reach = kill;
     }
 }
@@ -298,9 +301,8 @@ void fillGenKillAvail(std::map<int, BasicBlock>& CFG) {
     }
 }
 
-void available(std::map<int, BasicBlock>& CFG) {
+void available(std::map<int, BasicBlock>& CFG) {    
     for (auto& [id, block] : CFG) {
-        // block.in_avail = id != 1 ? all_exprs : std::set<std::string>{};
         block.in_avail = std::set<std::string>{};
         block.out_avail = std::set<std::string>{};
     }
@@ -309,7 +311,7 @@ void available(std::map<int, BasicBlock>& CFG) {
     do {
         changed = false;
         for (auto& [id, block] : CFG) {
-            auto in = id != 1 ? CFG[*block.predecessors.begin()].out_avail : std::set<std::string>{};
+            auto in = block.predecessors.size() > 0 ? CFG[*block.predecessors.begin()].out_avail : std::set<std::string>{};
             for (const auto pred : block.predecessors) {
                 for (auto v = in.begin(); v != in.end(); ) {
                     if (CFG[pred].out_avail.find(*v) == CFG[pred].out_avail.end()) {
