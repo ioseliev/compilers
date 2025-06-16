@@ -1,13 +1,7 @@
-#include "utils.h"
+#include "include/utils.hpp"
 
 #include <string>
-#include <vector>
-#include <set>
-#include <map>
-#include <sstream> 
 #include <algorithm> 
-#include <iostream>
-#include <fstream>
 
 std::string trim(const std::string& s) {
     const auto start = s.find_first_not_of(" \t");
@@ -26,6 +20,29 @@ bool isComparator(const std::string& t) {
     if (eq_pos != std::string::npos) {
         if ((eq_pos > 0 && (t[eq_pos - 1] == '<' || t[eq_pos - 1] == '>')) ||
             (eq_pos + 1 < t.size() && t[eq_pos + 1] == '=')) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static inline bool isOperator(const unsigned char c) {
+    switch (c) {
+        case '+':
+        case '-':
+        case '*':
+        case '/': {
+            return true;
+        }
+        default: {
+            return false;
+        }
+    }
+}
+
+bool isExpression(const std::string& s) {
+    for (const char c : s) {
+        if (isOperator(c)) {
             return true;
         }
     }

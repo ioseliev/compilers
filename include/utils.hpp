@@ -16,4 +16,6 @@ bool isVariable(const std::string& token);
 
 bool isComparator(const std::string& t);
 
+bool isExpression(const std::string& s);
+
 #endif

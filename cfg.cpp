@@ -1,12 +1,11 @@
-#include "cfg.h"
-#include "utils.h"
+#include "include/cfg.hpp"
+#include "include/utils.hpp"
 
 #include <string>
 #include <vector>
 #include <set>
 #include <map>
 #include <sstream> 
-#include <algorithm> 
 #include <iostream>
 #include <fstream>
 
@@ -39,11 +38,11 @@ Instruction::Instruction(const std::string& t) : text(t) {
 BasicBlock::BasicBlock() : id(-1) {}
 BasicBlock::BasicBlock(int i) : id(i) {}
 
-void read(const std::string& filename, std::map<int, BasicBlock>& CFG) {
+CFG read(const std::string& filename) {
+    CFG cfg;
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error opening file: " << filename << std::endl;
-        return;
     }
     while (true) {
         int block_id, num_instr;
@@ -71,18 +70,19 @@ void read(const std::string& filename, std::map<int, BasicBlock>& CFG) {
             }
         }
 
-        CFG[block_id] = block;
+        cfg[block_id] = block;
     }
 
-    for (auto& [id, block] : CFG) {
+    for (auto& [id, block] : cfg) {
         for (const auto succ_id : block.successors) {
-            CFG[succ_id].predecessors.insert(id);
+            cfg[succ_id].predecessors.insert(id);
         }
     }
-};
+    return cfg;
+}
 
-void fillUseDef(std::map<int, BasicBlock>& CFG) {
-    for (auto& [id, block] : CFG) {
+void fillUseDef(CFG& cfg) {
+    for (auto& [id, block] : cfg) {
         std::set<std::string> defined;
         for (const auto& instr : block.instructions) {
             
@@ -96,10 +96,10 @@ void fillUseDef(std::map<int, BasicBlock>& CFG) {
             }
         }
     }
-};
+}
 
-void printCFG(std::map<int, BasicBlock> CFG){
-    for (const auto& [id, block] : CFG) {
+void printCFG(const CFG& cfg){
+    for (const auto& [id, block] : cfg) {
         std::cout << "Block " << id << ":\n";
         std::cout << "  Instructions:\n";
         for (const auto& instr : block.instructions) {

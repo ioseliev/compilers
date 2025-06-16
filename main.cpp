@@ -1,15 +1,6 @@
-#include "cfg.h"
-#include "utils.h"
-#include "analysis.h"
-
-#include <string>
-#include <vector>
-#include <set>
-#include <map>
-#include <sstream> 
-#include <algorithm> 
+#include "include/cfg.hpp"
+#include "include/analysis.hpp"
 #include <iostream>
-#include <fstream>
 
 int main(int argc, char **argv){
     if (argc < 2) {
@@ -17,30 +8,34 @@ int main(int argc, char **argv){
         return 1;
     }
 
-    std::map<int, BasicBlock> CFG;
-    read(argv[1], CFG);
+    CFG cfg = read(argv[1]);
 
-    fillUseDef(CFG);
-    fillGenKillReach(CFG);
-    fillGenKillAvail(CFG);
+    if (cfg.empty()) {
+        std::cerr << "Empty or non-existing CFG file." << std::endl;
+        return 1;
+    }
+
+    fillUseDef(cfg);
+    fillGenKillReach(cfg);
+    fillGenKillAvail(cfg);
     
-    liveness(CFG);
-    reachingDefinitions(CFG);
-    available(CFG);
+    liveness(cfg);
+    reachingDefinitions(cfg);
+    available(cfg);
 
-    std::cerr << "CONTROL FLOW GRAPH SUMMARY:\n\n";
-    printCFG(CFG);
+    std::cout << "CONTROL FLOW GRAPH SUMMARY:\n\n";
+    printCFG(cfg);
 
     std::cout << "ANALYSES SUMMARY:\n\n";
 
     std::cout << "Liveness:\n";
-    printInOut(CFG);
+    printInOut(cfg);
 
     std::cout << "Reaching definitions:\n";
-    printReachingDefinitions(CFG);
+    printReachingDefinitions(cfg);
 
     std::cout << "Available expressions:\n";
-    printAvailable(CFG);
+    printAvailable(cfg);
     
     return 0;
 }

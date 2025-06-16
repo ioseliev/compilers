@@ -5,10 +5,6 @@
 #include <vector>
 #include <set>
 #include <map>
-#include <sstream> 
-#include <algorithm> 
-#include <iostream>
-#include <fstream>
 
 struct Instruction {
     std::string text; 
@@ -46,11 +42,13 @@ struct BasicBlock {
     BasicBlock(int i);
 };
 
-void read(const std::string& filename, std::map<int, BasicBlock>& CFG);
+using CFG = std::map<int, BasicBlock>;
 
-void fillUseDef(std::map<int, BasicBlock>& CFG);
+CFG read(const std::string& filename);
 
-void printCFG(std::map<int, BasicBlock> CFG);
+void fillUseDef(CFG& cfg);
+
+void printCFG(const CFG& cfg);
 
 
 #endif
